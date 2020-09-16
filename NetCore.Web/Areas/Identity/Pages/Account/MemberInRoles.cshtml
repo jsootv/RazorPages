@@ -1,0 +1,118 @@
+﻿@page
+@model NetCore.Web.Areas.Identity.Pages.Account.MemberInRolesModel
+@{
+    ViewData["Title"] = "회원 보유권한 리스트";
+    Layout = "~/Pages/Shared/_Layout.cshtml";
+}
+@section Scripts {
+    <script>
+        // 회원이메일 텍스트박스 초기화
+        function clearTextbox() {
+            let memberEmail = $("input[name='Search._memberEmail']");
+            memberEmail.val("");
+            memberEmail.focus();
+        }
+
+        // 권한변경할 때 자동으로 버튼 클릭하기
+        function changeRole(obj, mIndex) {
+            if ($(obj).val() == "NA") {
+                alert("권한명을 선택하세요.");
+                return false;
+            }
+
+            $("button[name='btnChangeRole" + String(mIndex) + "']").click();
+            return true;
+        }
+    </script>
+}
+<h1>@ViewData["Title"]</h1>
+<p class="text-primary">
+    권한 우선순위가 높을수록 더 큰 권한입니다.(1~4)
+    <span class="text-danger">나의 보유권한 : @(Model._loginMember.MemberInRole.Description + "(" + Model._loginMember.MemberInRole.RolePriority.ToString() + ")")</span>
+</p>
+<partial name="_StatusMessage" model="Model.StatusMessage" />
+<div class="container">
+    <!-- 검색 -->
+    <form method="post" class="form-inline" asp-area="Identity" asp-page="/Account/MemberInRoles" onsubmit="btnSearch.disabled = true; return true;">
+        <div class="input-group mb-3">
+            <!-- 회원 이메일 -->
+            <label asp-for="Search._memberEmail"></label>&nbsp;&nbsp;
+            <input type="text" asp-for="Search._memberEmail" class="form-control" style="width:300px;" placeholder="회원 이메일을 입력하세요." aria-label="회원 이메일을 입력하세요." aria-describedby="btnClear" tabindex="1" autofocus />
+            <div class="input-group-append">
+                <!-- Clear -->
+                <button class="btn btn-info" type="button" id="btnClear" title="초기화" onclick="clearTextbox();" tabindex="3">Clear</button>&nbsp;&nbsp;
+                <button class="btn btn-primary" type="submit" name="btnSearch" title="검색" tabindex="2">Search</button>
+                <!-- Search -->
+            </div>&nbsp;&nbsp;
+            <!-- 회원리스트 카운트 -->
+            <label class="text-danger">총 @(Model._members.Count().ToString()+"건")</label>
+        </div>
+    </form>
+    <!-- 리스트 -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th class="bg-warning text-center" title="회원 유형">회원 유형</th>
+                <th class="bg-warning text-center" title="회원 성명">회원 성명</th>
+                <th class="bg-warning text-center" title="회원 이메일">회원 이메일</th>
+                <th class="bg-warning text-center" title="권한 이름">권한명</th>
+                <th class="bg-warning text-center" title="권한 설명">권한 설명</th>
+                <th class="bg-warning text-center" title="권한 변경하기">권한 변경</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model._members != null && Model._members.Count() > 0)
+            {
+                int mIndex = 0;
+                foreach (ApplicationUser member in Model._members)
+                {
+                    mIndex++;
+                    <tr>
+                        <td class="text-center">@member.Description</td>
+                        <td>@(member.GivenName + ", " + member.Surname)</td>
+                        <td>@member.UserName</td>
+                        <td class="text-center">@member.MemberInRole.Name</td>
+                        <td class="text-center">@(member.MemberInRole.Description + "(" + member.MemberInRole.RolePriority.ToString() + ")")</td>
+                        <td class="text-center">
+                            @if (!member.IsTheMemberWhoCannotChangeRole)
+                            {
+                                if (Model._loginMember.UserName != member.UserName)
+                                {
+                            <form method="post" onsubmit="@("btnChangeRole"+mIndex.ToString()).disabled = true; return true;">
+                                <!-- 변경 권한명 -->
+                                <select asp-for="ChangeRole._changeRoleName" class="form-control" onchange="return changeRole(this, @mIndex.ToString());">
+                                    <option value="NA">== 권한명 선택 ==</option>
+                                    @foreach (ApplicationRole role in Model._roles.Where(r => r.Name != member.MemberInRole.Name))
+                                    {
+                                        <option value="@role.Name">@(role.Description+"(" + role.RolePriority.ToString() + ")")</option>
+                                    }
+                                </select>
+                                <!-- 권한변경 회원이메일 -->
+                                <input type="hidden" asp-for="ChangeRole._memberEmail" value="@member.UserName" />
+                                <!-- 기존 보유권한명 -->
+                                <input type="hidden" asp-for="ChangeRole._originalRoleName" value="@member.MemberInRole.Name" />
+                                <button type="submit" name="@("btnChangeRole"+mIndex.ToString())" asp-page-handler="ChangeRole" style="display:none;">Change Role</button>
+                            </form>
+                                }
+                                else
+                                {
+                                    <span class="text-info">자신의 권한은 변경할 수 없습니다.</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-danger">권한 변경이 금지된 회원입니다.</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="6">해당 권한을 가진 회원이 없습니다.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
